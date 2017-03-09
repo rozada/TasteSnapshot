@@ -1,0 +1,203 @@
+﻿@model TasteSnapshot.ViewModels.YummyViewModel
+@{
+    ViewBag.Title = "Home Page";
+}
+<script>
+        function hasGetUserMedia() {
+            return !!(navigator.getUserMedia || navigator.webkitGetUserMedia ||
+    navigator.mozGetUserMedia || navigator.msGetUserMedia);
+        }
+
+        if (hasGetUserMedia()) {
+            // Good to go!
+            navigator.getUserMedia = (navigator.getUserMedia ||
+        navigator.webkitGetUserMedia ||
+        navigator.mozGetUserMedia ||
+        navigator.msGetUserMedia);
+        } else {
+            alert('getUserMedia() is not supported in your browser');
+        }
+
+        var hdConstraints = {
+            video: {
+                mandatory: {
+                    minWidth: 1280,
+                    minHeight: 720
+                }
+            },
+            audio: true
+        };
+
+        var vgaConstraints = {
+            video: {
+                mandatory: {
+                    maxWidth: 640,
+                    maxHeight: 360
+                }
+            }
+        };
+
+        function dataURItoBlob(dataURI) {
+            // convert base64/URLEncoded data component to raw binary data held in a string
+            var byteString;
+            if (dataURI.split(',')[0].indexOf('base64') >= 0)
+                byteString = atob(dataURI.split(',')[1]);
+            else
+                byteString = unescape(dataURI.split(',')[1]);
+
+            // separate out the mime component
+            var mimeString = dataURI.split(',')[0].split(':')[1].split(';')[0];
+
+            // write the bytes of the string to a typed array
+            var ia = new Uint8Array(byteString.length);
+            for (var i = 0; i < byteString.length; i++) {
+                ia[i] = byteString.charCodeAt(i);
+            }
+
+            return new Blob([ia], { type: mimeString });
+        }
+
+        function blobToDataURL(blob, callback) {
+            var a = new FileReader();
+            a.onload = function (e) { callback(e.target.result); }
+            a.readAsDataURL(blob);
+        }
+</script>
+
+<div class="jumbotron">
+    <h1>Get Yummy</h1>
+</div>
+
+<div class="row">
+    <h1>Featured Yummy</h1>
+    <div class="col-md-4">
+        <text>@Model.Name</text>
+    </div>
+</div>
+<form action="/Home/GetYummy" method="post">
+    <p>
+        <input type="submit" value="Get Yummy" />
+    </p>
+</form>
+<button onclick="retrieveImage()" id="btnRetrieveImg">Retrieve Image</button>
+<br />
+<br />
+<br/>
+<textarea id="foo" style="width: 402px">this is some more text</textarea>
+<video autoplay></video>
+<img src="" />
+<img id="img2" src='@Url.Action("ShowImage", "Home")' title="Retrieved Image" />
+<canvas></canvas>
+
+<div id="carousel-example-generic" class="carousel slide" data-ride="carousel">
+    <!-- Indicators -->
+    <ol class="carousel-indicators">
+        <li data-target="#carousel-example-generic" data-slide-to="0" class="active"></li>
+        <li data-target="#carousel-example-generic" data-slide-to="1"></li>
+        <li data-target="#carousel-example-generic" data-slide-to="2"></li>
+    </ol>
+    <!-- Wrapper for slides -->
+    <div class="carousel-inner" role="listbox">
+        <div class="item active">
+            <img src="~/Images/ChickenWings.jpg" alt="Chicken Wings">
+            <div class="carousel-caption">
+                Chicken Wings
+            </div>
+        </div>
+        <div class="item">
+            <img src="~/Images/pizza.jpe" alt="Pizza">
+            <div class="carousel-caption">
+                Pizza
+            </div>
+        </div>
+        <div class="item">
+            <img src="~/Images/FrenchFries.jpe" alt="French Fries">
+            <div class="carousel-caption">
+                French Fries
+            </div>
+        </div>
+    </div>
+    <!-- Controls -->
+    <a class="left carousel-control" href="#carousel-example-generic" role="button" data-slide="prev">
+        <span class="glyphicon glyphicon-chevron-left" aria-hidden="true"></span>
+        <span class="sr-only">Previous</span>
+    </a>
+    <a class="right carousel-control" href="#carousel-example-generic" role="button" data-slide="next">
+        <span class="glyphicon glyphicon-chevron-right" aria-hidden="true"></span>
+        <span class="sr-only">Next</span>
+    </a>
+</div>
+<script>
+        var width = document.getElementById('foo').offsetWidth;
+        alert(width);
+
+        var errorCallback = function (e) {
+            console.log('Reeeejected!', e);
+        };
+
+        var video = document.querySelector('video');
+        var canvas = document.querySelector('canvas');
+        var ctx = canvas.getContext('2d');
+        ctx.canvas.width = "640";
+        ctx.canvas.height = "360";
+        var localMediaStream = null;
+
+        function snapshot() {
+            if (localMediaStream) {
+                ctx.drawImage(video, 0, 0, 640, 360);
+                // "image/webp" works in Chrome.
+                // Other browsers will fall back to image/png.
+                var dataURL = canvas.toDataURL('image/webp');
+                document.querySelector('img').src = dataURL;
+
+                var blob = dataURItoBlob(dataURL);
+                alert(blob);
+                var formData = new FormData();//document.forms[0]);
+                formData.append("canvasImage", blob);
+                // now post a new XHR request
+                var xhr = new XMLHttpRequest();
+                xhr.open('POST', '/TasteSnapshot/Home/Upload');//Snapshot.aspx');
+                //     xhr.setRequestHeader("Content-Type", "application/octet-stream");
+                xhr.onload = function () {
+                    if (xhr.status === 200) {
+                        console.log('all done: ' + xhr.status);
+                        window.alert("Successful upload!");
+                    } else {
+                        window.alert(xhr.status);
+                    }
+                };
+                xhr.send(formData);
+            }
+        }
+
+        video.addEventListener('click', snapshot, false);
+
+        // Not showing vendor prefixes.
+        if (navigator.getUserMedia) {
+            navigator.getUserMedia({ video: true }, function (stream) {
+                video.src = window.URL.createObjectURL(stream);
+                localMediaStream = stream;
+                // Note: onloadedmetadata doesn't fire in Chrome when using it with getUserMedia.
+                // See crbug.com/110938.
+                video.onloadedmetadata = function (e) {
+                    // Ready to go. Do some stuff.
+                    console.log("onloadedmetadata");
+                };
+            }, errorCallback);
+        }
+        else {
+            video.src = "big-buck-bunny_trailer.webm";
+        };
+        
+        function retrieveImage(){
+            $.ajax({
+                method: "POST",
+                url: '/TasteSnapshot/Home/Show',
+                success: function (data) {
+                       $("#img2").src = data;
+                       console.log(data);
+                        console.log($('#img2'));
+                }
+            });
+        }
+</script>
